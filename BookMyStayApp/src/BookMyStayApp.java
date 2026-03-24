@@ -1,76 +1,35 @@
 import java.util.*;
 
-class InvalidBookingException extends Exception {
-    public InvalidBookingException(String message) {
-        super(message);
-    }
-}
+class BookingRequest {
+    String guestName;
+    String roomType;
 
-class Reservation {
-    private String reservationId;
-    private String guestName;
-    private String roomType;
-    private boolean isCancelled;
-
-    public Reservation(String reservationId, String guestName, String roomType) {
-        this.reservationId = reservationId;
+    public BookingRequest(String guestName, String roomType) {
         this.guestName = guestName;
         this.roomType = roomType;
-        this.isCancelled = false;
-    }
-
-    public String getReservationId() {
-        return reservationId;
-    }
-
-    public String getGuestName() {
-        return guestName;
-    }
-
-    public String getRoomType() {
-        return roomType;
-    }
-
-    public boolean isCancelled() {
-        return isCancelled;
-    }
-
-    public void cancel() {
-        this.isCancelled = true;
     }
 }
 
-class BookingHistory {
+class BookingQueue {
 
-    private Map<String, Reservation> reservations = new HashMap<>();
+    private Queue<BookingRequest> queue = new LinkedList<>();
 
-    public void addReservation(Reservation reservation) {
-        reservations.put(reservation.getReservationId(), reservation);
+    public synchronized void addRequest(BookingRequest request) {
+        queue.add(request);
+        notify();
     }
 
-    public Reservation getReservation(String reservationId) {
-        return reservations.get(reservationId);
-    }
+    public synchronized BookingRequest getRequest() {
 
-    public Collection<Reservation> getAllReservations() {
-        return reservations.values();
-    }
-}
-
-class BookingValidator {
-
-    private static final Set<String> VALID_ROOM_TYPES =
-            new HashSet<>(Arrays.asList("Single", "Double", "Suite"));
-
-    public void validate(String guestName, String roomType) throws InvalidBookingException {
-
-        if (guestName == null || guestName.trim().isEmpty()) {
-            throw new InvalidBookingException("Guest name cannot be empty.");
+        while (queue.isEmpty()) {
+            try {
+                wait(); // wait until request is available
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
-        if (!VALID_ROOM_TYPES.contains(roomType)) {
-            throw new InvalidBookingException("Invalid room type selected.");
-        }
+        return queue.poll();
     }
 }
 
@@ -89,12 +48,18 @@ class RoomInventory {
         counters.put("Suite", 0);
     }
 
-    public String allocateRoom(String roomType) throws InvalidBookingException {
+    public synchronized String allocateRoom(String roomType) {
 
         int available = inventory.getOrDefault(roomType, 0);
 
         if (available <= 0) {
-            throw new InvalidBookingException("No rooms available.");
+            return null;
+        }
+
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
 
         inventory.put(roomType, available - 1);
@@ -105,59 +70,41 @@ class RoomInventory {
         return roomType + "-" + count;
     }
 
-    public void releaseRoom(String roomType) {
-        inventory.put(roomType, inventory.get(roomType) + 1);
-    }
-
-    public int getAvailability(String roomType) {
-        return inventory.getOrDefault(roomType, 0);
+    public void printInventory() {
+        System.out.println("\nRemaining Inventory:");
+        for (String type : inventory.keySet()) {
+            System.out.println(type + ": " + inventory.get(type));
+        }
     }
 }
 
-class CancellationService {
+class BookingProcessor extends Thread {
 
-    private Stack<String> rollbackStack = new Stack<>();
+    private BookingQueue queue;
+    private RoomInventory inventory;
 
-    public void cancelBooking(String reservationId,
-                              BookingHistory history,
-                              RoomInventory inventory,
-                              Map<String, String> reservationToRoomMap)
-            throws InvalidBookingException {
-
-        Reservation reservation = history.getReservation(reservationId);
-
-        if (reservation == null) {
-            throw new InvalidBookingException("Reservation does not exist.");
-        }
-
-        if (reservation.isCancelled()) {
-            throw new InvalidBookingException("Reservation already cancelled.");
-        }
-
-        String roomId = reservationToRoomMap.get(reservationId);
-
-        rollbackStack.push(roomId);
-
-        inventory.releaseRoom(reservation.getRoomType());
-
-        reservation.cancel();
-
-        System.out.println("Booking cancelled successfully. Inventory restored for room type: "
-                + reservation.getRoomType());
+    public BookingProcessor(BookingQueue queue, RoomInventory inventory) {
+        this.queue = queue;
+        this.inventory = inventory;
     }
 
-    public void printRollbackHistory(RoomInventory inventory, String roomType) {
+    @Override
+    public void run() {
 
-        System.out.println("\nRollback History (Most Recent First):");
+        for (int i = 0; i < 2; i++) {
 
-        Stack<String> temp = (Stack<String>) rollbackStack.clone();
+            BookingRequest request = queue.getRequest();
 
-        while (!temp.isEmpty()) {
-            System.out.println("Released Reservation ID: " + temp.pop());
+            String roomId = inventory.allocateRoom(request.roomType);
+
+            if (roomId != null) {
+                System.out.println("Booking confirmed for Guest: "
+                        + request.guestName + ", Room ID: " + roomId);
+            } else {
+                System.out.println("Booking failed for Guest: "
+                        + request.guestName + " (No availability)");
+            }
         }
-
-        System.out.println("Updated " + roomType + " Room Availability: "
-                + inventory.getAvailability(roomType));
     }
 }
 
@@ -165,40 +112,29 @@ public class BookMyStayApp {
 
     public static void main(String[] args) {
 
-        BookingValidator validator = new BookingValidator();
+        BookingQueue queue = new BookingQueue();
         RoomInventory inventory = new RoomInventory();
-        BookingHistory history = new BookingHistory();
-        CancellationService cancellationService = new CancellationService();
 
-        Map<String, String> reservationToRoomMap = new HashMap<>();
+        System.out.println("Concurrent Booking Simulation\n");
+
+        queue.addRequest(new BookingRequest("Abhi", "Single"));
+        queue.addRequest(new BookingRequest("Vanmathi", "Double"));
+        queue.addRequest(new BookingRequest("Kural", "Suite"));
+        queue.addRequest(new BookingRequest("Subha", "Single"));
+
+        BookingProcessor t1 = new BookingProcessor(queue, inventory);
+        BookingProcessor t2 = new BookingProcessor(queue, inventory);
+
+        t1.start();
+        t2.start();
 
         try {
-
-            String guestName = "Abhi";
-            String roomType = "Single";
-
-            validator.validate(guestName, roomType);
-
-            String roomId = inventory.allocateRoom(roomType);
-
-            String reservationId = UUID.randomUUID().toString();
-
-            Reservation reservation = new Reservation(reservationId, guestName, roomType);
-
-            history.addReservation(reservation);
-            reservationToRoomMap.put(reservationId, roomId);
-
-            System.out.println("Booking successful: " + reservationId + " -> " + roomId);
-
-            System.out.println("\nBooking Cancellation");
-            cancellationService.cancelBooking(
-                    reservationId, history, inventory, reservationToRoomMap
-            );
-
-            cancellationService.printRollbackHistory(inventory, roomType);
-
-        } catch (InvalidBookingException e) {
-            System.out.println("Error: " + e.getMessage());
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
+
+        inventory.printInventory();
     }
 }
