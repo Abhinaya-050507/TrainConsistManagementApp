@@ -1,29 +1,47 @@
-import java.util.regex.*;
+import java.util.*;
+
+class GoodsBogie {
+    private String type;
+    private String cargo;
+
+    public GoodsBogie(String type, String cargo) {
+        this.type = type;
+        this.cargo = cargo;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getCargo() {
+        return cargo;
+    }
+
+    @Override
+    public String toString() {
+        return "GoodsBogie{type='" + type + "', cargo='" + cargo + "'}";
+    }
+}
 
 public class TrainConsistManagementApp {
 
-    private static final String TRAIN_ID_REGEX = "TRN-\\d{4}";
-    private static final String CARGO_CODE_REGEX = "PET-[A-Z]{2}";
-
     public static void main(String[] args) {
 
-        String trainId = "TRN-1234";
-        String cargoCode = "PET-AB";
+        List<GoodsBogie> bogies = Arrays.asList(
+                new GoodsBogie("Cylindrical", "Petroleum"),
+                new GoodsBogie("Open", "Coal"),
+                new GoodsBogie("Box", "Grain"),
+                new GoodsBogie("Cylindrical", "Petroleum")
+        );
 
-        Pattern trainPattern = Pattern.compile(TRAIN_ID_REGEX);
-        Pattern cargoPattern = Pattern.compile(CARGO_CODE_REGEX);
+        boolean isSafe = bogies.stream()
+                .allMatch(b ->
+                        !b.getType().equalsIgnoreCase("Cylindrical") ||
+                                b.getCargo().equalsIgnoreCase("Petroleum")
+                );
 
-        Matcher trainMatcher = trainPattern.matcher(trainId);
-        Matcher cargoMatcher = cargoPattern.matcher(cargoCode);
-
-        boolean isTrainValid = trainMatcher.matches();
-        boolean isCargoValid = cargoMatcher.matches();
-
-        System.out.println("Train ID: " + trainId + " -> " +
-                (isTrainValid ? "Valid" : "Invalid"));
-
-        System.out.println("Cargo Code: " + cargoCode + " -> " +
-                (isCargoValid ? "Valid" : "Invalid"));
+        System.out.println("Train Safety Compliance: " +
+                (isSafe ? "SAFE" : "UNSAFE"));
 
     }
 }
