@@ -1,26 +1,51 @@
 import java.util.*;
-import java.util.stream.Collectors;
 
-class Bogie {
-    private String name;
-    private int capacity;
+class CargoSafetyException extends RuntimeException {
+    public CargoSafetyException(String message) {
+        super(message);
+    }
+}
 
-    public Bogie(String name, int capacity) {
-        this.name = name;
-        this.capacity = capacity;
+class GoodsBogie {
+    private String type;
+    private String cargo;
+
+    public GoodsBogie(String type) {
+        this.type = type;
     }
 
-    public String getName() {
-        return name;
+    public String getType() {
+        return type;
     }
 
-    public int getCapacity() {
-        return capacity;
+    public String getCargo() {
+        return cargo;
+    }
+
+    public void assignCargo(String cargo) {
+        try {
+
+            if (type.equalsIgnoreCase("Rectangular") &&
+                    cargo.equalsIgnoreCase("Petroleum")) {
+                throw new CargoSafetyException(
+                        "Unsafe: Rectangular bogie cannot carry Petroleum"
+                );
+            }
+
+            this.cargo = cargo;
+            System.out.println(type + " bogie assigned cargo: " + cargo);
+
+        } catch (CargoSafetyException e) {
+            System.out.println("Error: " + e.getMessage());
+
+        } finally {
+            System.out.println("Cargo assignment attempt completed for " + type);
+        }
     }
 
     @Override
     public String toString() {
-        return "Bogie{name='" + name + "', capacity=" + capacity + "}";
+        return "GoodsBogie{type='" + type + "', cargo='" + cargo + "'}";
     }
 }
 
@@ -28,36 +53,13 @@ public class TrainConsistManagementApp {
 
     public static void main(String[] args) {
 
-        List<Bogie> bogies = new ArrayList<>();
-        for (int i = 0; i < 100000; i++) {
-            bogies.add(new Bogie("Type" + (i % 3), 40 + (i % 50)));
-        }
+        GoodsBogie b1 = new GoodsBogie("Cylindrical");
+        GoodsBogie b2 = new GoodsBogie("Rectangular");
 
-        long startLoop = System.nanoTime();
+        b1.assignCargo("Petroleum");
 
-        List<Bogie> loopResult = new ArrayList<>();
-        for (Bogie b : bogies) {
-            if (b.getCapacity() > 60) {
-                loopResult.add(b);
-            }
-        }
+        b2.assignCargo("Petroleum");
 
-        long endLoop = System.nanoTime();
-        long loopTime = endLoop - startLoop;
-
-        long startStream = System.nanoTime();
-
-        List<Bogie> streamResult = bogies.stream()
-                .filter(b -> b.getCapacity() > 60)
-                .collect(Collectors.toList());
-
-        long endStream = System.nanoTime();
-        long streamTime = endStream - startStream;
-
-        System.out.println("Loop Result Size: " + loopResult.size());
-        System.out.println("Stream Result Size: " + streamResult.size());
-
-        System.out.println("Loop Execution Time (ns): " + loopTime);
-        System.out.println("Stream Execution Time (ns): " + streamTime);
+        b2.assignCargo("Coal");
     }
 }
