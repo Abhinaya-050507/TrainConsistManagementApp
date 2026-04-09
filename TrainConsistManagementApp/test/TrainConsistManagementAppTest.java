@@ -1,90 +1,61 @@
 import org.junit.jupiter.api.Test;
-import java.util.*;
-import java.util.stream.Collectors;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class TrainConsistManagementAppTest {
 
-    private List<Bogie> getSampleBogies() {
-        return Arrays.asList(
-                new Bogie("Sleeper", 72),
-                new Bogie("AC Chair", 60),
-                new Bogie("General", 50),
-                new Bogie("First Class", 80)
-        );
+    @Test
+    void testException_ValidCapacityCreation() {
+        assertDoesNotThrow(() -> {
+            PassengerBogie bogie = new PassengerBogie("Sleeper", 72);
+            assertEquals(72, bogie.getCapacity());
+        });
     }
 
     @Test
-    void testLoopFilteringLogic() {
-        List<Bogie> result = new ArrayList<>();
+    void testException_NegativeCapacityThrowsException() {
+        Exception exception = assertThrows(InvalidCapacityException.class, () -> {
+            new PassengerBogie("Sleeper", -10);
+        });
 
-        for (Bogie b : getSampleBogies()) {
-            if (b.getCapacity() > 60) {
-                result.add(b);
-            }
-        }
-
-        assertEquals(2, result.size()); // 72 & 80
+        assertEquals("Capacity must be greater than zero", exception.getMessage());
     }
 
     @Test
-    void testStreamFilteringLogic() {
-        List<Bogie> result = getSampleBogies().stream()
-                .filter(b -> b.getCapacity() > 60)
-                .collect(Collectors.toList());
+    void testException_ZeroCapacityThrowsException() {
+        Exception exception = assertThrows(InvalidCapacityException.class, () -> {
+            new PassengerBogie("AC Chair", 0);
+        });
 
-        assertEquals(2, result.size());
+        assertEquals("Capacity must be greater than zero", exception.getMessage());
     }
 
     @Test
-    void testLoopAndStreamResultsMatch() {
-        List<Bogie> list = getSampleBogies();
+    void testException_ExceptionMessageValidation() {
+        Exception exception = assertThrows(InvalidCapacityException.class, () -> {
+            new PassengerBogie("First Class", 0);
+        });
 
-        List<Bogie> loopResult = new ArrayList<>();
-        for (Bogie b : list) {
-            if (b.getCapacity() > 60) {
-                loopResult.add(b);
-            }
-        }
-
-        List<Bogie> streamResult = list.stream()
-                .filter(b -> b.getCapacity() > 60)
-                .collect(Collectors.toList());
-
-        assertEquals(loopResult.size(), streamResult.size());
+        assertEquals("Capacity must be greater than zero", exception.getMessage());
     }
 
     @Test
-    void testExecutionTimeMeasurement() {
-        List<Bogie> list = getSampleBogies();
+    void testException_ObjectIntegrityAfterCreation() throws InvalidCapacityException {
+        PassengerBogie bogie = new PassengerBogie("First Class", 40);
 
-        long start = System.nanoTime();
-
-        list.stream()
-                .filter(b -> b.getCapacity() > 60)
-                .collect(Collectors.toList());
-
-        long end = System.nanoTime();
-
-        long duration = end - start;
-
-        assertTrue(duration > 0);
+        assertEquals("First Class", bogie.getType());
+        assertEquals(40, bogie.getCapacity());
     }
 
     @Test
-    void testLargeDatasetProcessing() {
-        List<Bogie> bogies = new ArrayList<>();
+    void testException_MultipleValidBogiesCreation() {
+        assertDoesNotThrow(() -> {
+            PassengerBogie b1 = new PassengerBogie("Sleeper", 72);
+            PassengerBogie b2 = new PassengerBogie("AC Chair", 60);
+            PassengerBogie b3 = new PassengerBogie("First Class", 40);
 
-        for (int i = 0; i < 10000; i++) {
-            bogies.add(new Bogie("Type", i % 100));
-        }
-
-        List<Bogie> result = bogies.stream()
-                .filter(b -> b.getCapacity() > 60)
-                .collect(Collectors.toList());
-
-        assertNotNull(result);
-        assertTrue(result.size() > 0);
+            assertNotNull(b1);
+            assertNotNull(b2);
+            assertNotNull(b3);
+        });
     }
 }
