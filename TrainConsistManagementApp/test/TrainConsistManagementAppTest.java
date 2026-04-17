@@ -13,8 +13,7 @@ class TrainConsistManagementAppTest {
 
     @Test
     void testCargo_UnsafeAssignmentHandled() {
-        GoodsBogie bogie = new GoodsBogie("Rectangular");
-
+        GoodsBogie bogie = new GoodsBogie("Rectangular
         assertDoesNotThrow(() -> bogie.assignCargo("Petroleum"));
 
         assertNull(bogie.getCargo());
